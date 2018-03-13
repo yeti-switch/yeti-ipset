@@ -1,0 +1,12 @@
+Source: yeti-ipset
+Section: utils
+Priority: optional
+Maintainer: Michael Furmur <m.furmur@gmail.cpm>
+Build-Depends: debhelper (>= 9), devscripts, dh-python
+Standards-Version: 3.9.2
+
+Package: yeti-ipset
+Architecture: all
+Depends:  ${misc:Depends}, ${python:Depends}, ipset, cron
+Description: helper script to load whitelist for ipset from YETI API
+    part of https://yeti-switch.org/ project

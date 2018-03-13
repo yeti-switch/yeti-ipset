@@ -1,0 +1,8 @@
+[api]
+
+host = 127.0.0.1:3000
+ssl = 0
+
+[ipset]
+
+setname = yeti_whitelist

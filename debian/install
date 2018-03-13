@@ -1,0 +1,4 @@
+yeti_apply_ipset /usr/sbin
+minutely_yeti_apply_ipset /etc/cron.d/
+yeti-ipset.conf /etc/rsyslog.d/
+ipset.yml.dist /etc/yeti/

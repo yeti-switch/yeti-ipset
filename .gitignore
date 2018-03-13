@@ -1,0 +1,5 @@
+debian/files
+debian/yeti-ipset.debhelper.log
+debian/yeti-ipset.substvars
+debian/.debhelper
+debian/yeti-ipset

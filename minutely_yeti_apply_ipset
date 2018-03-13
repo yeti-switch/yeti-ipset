@@ -1,0 +1,3 @@
+# /etc/cron.d/minutely_yeti_apply_ipset : crontab fragment for minutely_yeti_apply_ipset
+# minutely load networks list from yeti API and apply it to the ipset
+#* * * * * root [ -x /usr/sbin/yeti_apply_ipset ] && /usr/sbin/yeti_apply_ipset

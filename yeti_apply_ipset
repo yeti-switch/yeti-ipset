@@ -1,0 +1,99 @@
+#!/usr/bin/python
+
+import sys, syslog, ConfigParser, fcntl, time, httplib, json, os
+from subprocess import Popen, PIPE, STDOUT
+
+tmp_ipset = 'noo2nizaiKeel8'
+ipset_cmd = '/usr/sbin/ipset '
+api_path = '/api/rest/system/ip_access'
+lockfile = '/var/run/yeti/ipset.lock'
+cfgfile = '/etc/yeti/ipset.yml'
+
+def info(msg):
+    syslog.syslog(syslog.LOG_INFO,msg)
+
+def err(msg):
+    syslog.syslog(syslog.LOG_ERR,msg)
+
+def do_ipset_cmd(cmd,stdin = None):
+    p = Popen(ipset_cmd+cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+    (outpipe,errpipe) = p.communicate(stdin)
+    if p.returncode!=0:
+        raise BaseException("ipset cmd '{}' failed. code: {}, error: {}".format(cmd,p.returncode,errpipe))
+
+def main(argv):
+    syslog.openlog('yeti-ipset', syslog.LOG_PID, syslog.LOG_DAEMON)
+    info('started')
+    try:
+        c = ConfigParser.ConfigParser()
+        r = c.read([cfgfile])
+        if not len(r):
+            raise BaseException("no config file: {}".format(cfgfile))
+
+        lock = open(lockfile,'w+')
+        if not lock:
+            raise BaseException("failed to open lockfile: {}".format(lockfile))
+
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except:
+            raise BaseException("failed to lock: {}".format(lockfile))
+
+        cfg = dict()
+        for k in ['host','ssl']:
+            if not c.has_option('api',k):
+                raise BaseException("missed [api] section option '{}'".format(k))
+            cfg[k] = c.get('api',k)
+        for k in ['setname']:
+            if not c.has_option('ipset',k):
+                raise BaseException("missed [ipset] section option '{}'".format(k))
+            cfg[k] = c.get('ipset',k)
+        
+        work_ipset = cfg['setname']
+
+        #create temprorary set
+        do_ipset_cmd("create {0} nethash".format(tmp_ipset))
+
+        #load whiltelist from API
+        c  = httplib.HTTPConnection(cfg['host']) if not cfg['ssl'] or int(cfg['ssl'])==0 else httplib.HTTPSConnection(cfg['host'])
+        c.request("GET",api_path)
+        r = c.getresponse()
+        d = r.read()
+        c.close()
+        if(r.status!=200):
+            raise BaseException('failed to load whitelist from API: {} {}'.format(r.status, r.reason))
+        j = json.loads(d)
+
+        info("got {0} entries from API".format(len(j)))
+
+        #create input for 'ipset restore' cmd
+        cmds = '\n'.join([ 'add {0} {1}'.format(tmp_ipset,e) for e in j ])
+
+        #add entries to the temporary set  through restore cmd using stdin
+        do_ipset_cmd('restore',cmds)
+
+        #ensure we have work set created
+        do_ipset_cmd("-! create {} nethash".format(work_ipset))
+        
+        #swap temporary and active blacklist iphashes
+        do_ipset_cmd("swap {0} {1}".format(tmp_ipset,work_ipset))
+
+    except KeyboardInterrupt as e:
+        err("interrupted")
+    except BaseException as e:
+        err(str(e))
+    finally:
+        try:
+            do_ipset_cmd("destroy {0}".format(tmp_ipset))
+        except:
+            pass
+        try:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+            lock.close()
+            os.unlink(lockfile)
+        except:
+            pass
+    info('finished')
+
+if __name__ == "__main__":
+    main(sys.argv)
