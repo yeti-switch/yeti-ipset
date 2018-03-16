@@ -66,8 +66,20 @@ def main(argv):
 
         info("got {0} entries from API".format(len(j)))
 
-        #create input for 'ipset restore' cmd
-        cmds = '\n'.join([ 'add {0} {1}'.format(tmp_ipset,e) for e in j ])
+        #check for networks with mask 0. discard all entries if found and add two entries to allow all
+        allow_all = False
+        for e in j:
+            a = e.split('/')
+            if len(a) > 1 and int(a[1]) == 0:
+                allow_all = True
+                break
+
+        if allow_all:
+            info('found at least on network with mask 0. add 0.0.0.0/1 and 128.0.0.0/1 to the ipset discarding other entries')
+            cmds = 'add {0} 0.0.0.0/1\nadd {0} 128.0.0.0/1'.format(tmp_ipset)
+        else:
+            #create input for 'ipset restore' cmd
+            cmds = '\n'.join([ 'add {0} {1}'.format(tmp_ipset,e) for e in j ])
 
         #add entries to the temporary set  through restore cmd using stdin
         do_ipset_cmd('restore',cmds)
