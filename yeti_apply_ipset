@@ -4,7 +4,7 @@ import sys, syslog, ConfigParser, fcntl, time, httplib, json, os
 from subprocess import Popen, PIPE, STDOUT
 
 tmp_ipset = 'noo2nizaiKeel8'
-ipset_cmd = '/usr/sbin/ipset '
+ipset_cmd = '/sbin/ipset '
 api_path = '/api/rest/system/ip_access'
 lockfile = '/var/run/yeti-ipset.lock'
 cfgfile = '/etc/yeti/ipset.yml'
